@@ -114,7 +114,7 @@ def download_all_files(indexes: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str
         with open(assets_filepath, 'r', encoding='utf-8') as f:
             content = json.load(f)
             lang_tuple = get_lang_hash_from_asset(content["objects"])
-            langs_filepath = f"{langs_path}/{version}.{lang_tuple[0].split(".")[-1]}"
+            langs_filepath = f"{langs_path}/{version}.{lang_tuple[0].split('.')[-1]}"
             lang_file_url = f"{hash_file_base_url}/{lang_tuple[1][:2]}/{lang_tuple[1]}"
 
             download_if_not_exist(lang_file_url, langs_filepath)

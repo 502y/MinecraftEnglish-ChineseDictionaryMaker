@@ -8,6 +8,8 @@ on:
 jobs:
   generate-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
@@ -18,7 +20,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.13.5'
 
     - name: Run main script
       run: |
@@ -90,7 +92,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: release-${{ github.run_id }}
-        release_name: Minecraft Language Data Release ${{ github.run_id }}
+        release_name: Minecraft English Chinese Dictionary Release ${{ github.run_id }}
         draft: false
         prerelease: false
 
