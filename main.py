@@ -13,4 +13,4 @@ if __name__ == "__main__":
 
     dic = get_dictionary(file_map)
     with open("output.json", "w", encoding="utf-8") as f:
-        f.write(json.dumps(dic, ensure_ascii=False))
+        json.dump(dic, f, ensure_ascii=False, indent=4)
