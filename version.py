@@ -7,7 +7,7 @@ class Version:
         self.secondary_version = int(version_code[2]) if len(version_code) > 2 else 0
 
     def __str__(self):
-        return f"1.{self.main_version}.{self.secondary_version}"
+        return f"1.{self.main_version}.{self.secondary_version}" if self.secondary_version != 0 else f"1.{self.main_version}"
 
     def __repr__(self):
         return f"Version(str_version='{self.__str__()}')"

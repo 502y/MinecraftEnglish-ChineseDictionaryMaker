@@ -1,4 +1,17 @@
 .idea/
 .venv/
 .vscode/
+__pycache__/
+__pyc__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# 运行中文件与输出文件
 download/
+output.json

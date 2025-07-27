@@ -152,6 +152,7 @@ def extract_lang_file_hash(objects) -> str:
 def download(use_cache: bool):
     if not use_cache and os.path.exists("download/"):
         shutil.rmtree("download/")
+        print("已删除缓存")
     print("正在获取 Minecraft 版本清单...")
     manifests = fetch_versions_manifest()
     if manifests:
@@ -163,5 +164,5 @@ def download(use_cache: bool):
         exit(-1)
     assets_urls = get_assets_urls(manifests)
     indexes_url = get_assets_indexes(assets_urls)
-    print(indexes_url)
-    download_all_files(indexes_url)
+    files_map = download_all_files(indexes_url)
+    return files_map
