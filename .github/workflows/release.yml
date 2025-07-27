@@ -1,0 +1,106 @@
+name: Generate and Release Minecraft Language Data
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # 每周日运行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  generate-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        persist-credentials: false
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Run main script
+      run: |
+        python main.py
+
+    - name: Check if output.json exists
+      run: |
+        if [ ! -f "output.json" ]; then
+          echo "Error: output.json not found"
+          exit 1
+        fi
+
+    - name: Download latest release asset
+      id: get-latest-release
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const { data: releases } = await github.rest.repos.listReleases({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+          });
+          
+          if (releases.length > 0) {
+            const latestRelease = releases[0];
+            const assets = latestRelease.assets.filter(asset => asset.name === 'output.json');
+            
+            if (assets.length > 0) {
+              const asset = assets[0];
+              const download = await github.rest.repos.getReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+                headers: {
+                  Accept: 'application/octet-stream'
+                }
+              });
+              
+              // Write to file for comparison
+              fs.writeFileSync('latest_output.json', Buffer.from(download.data));
+              core.setOutput('has_previous_release', 'true');
+              return;
+            }
+          }
+          
+          core.setOutput('has_previous_release', 'false');
+
+    - name: Compare with previous release
+      id: compare
+      run: |
+        if [ "${{ steps.get-latest-release.outputs.has_previous_release }}" == "true" ]; then
+          if cmp -s output.json latest_output.json; then
+            echo "Files are identical, no need to release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Files differ, will create new release"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "No previous release found, will create new release"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create Release
+      id: create_release
+      if: steps.compare.outputs.should_release == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: release-${{ github.run_id }}
+        release_name: Minecraft Language Data Release ${{ github.run_id }}
+        draft: false
+        prerelease: false
+
+    - name: Upload output.json to Release
+      if: steps.compare.outputs.should_release == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./output.json
+        asset_name: output.json
+        asset_content_type: application/json
