@@ -66,7 +66,7 @@ def download_if_not_exist(url: str, filepath: str):
 
 
 def get_lang_hash_from_asset(objects):
-    lang_files = [
+    lang_files = (
         "minecraft/lang/zh_CN.lang",
         "minecraft/lang/zh_cn.lang",
         "minecraft/lang/zh_CN.json",
@@ -75,13 +75,14 @@ def get_lang_hash_from_asset(objects):
         "lang/zh_cn.lang",
         "lang/zh_CN.json",
         "lang/zh_cn.json"
-    ]
+    )
 
     for lang_file in lang_files:
         if lang_file in objects:
-            return [lang_file,objects[lang_file]["hash"]]
+            return [lang_file, objects[lang_file]["hash"]]
 
     return None
+
 
 def download_all_files(indexes: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str, str]]:
     """下载所有assets和client文件"""
@@ -132,7 +133,7 @@ def extract_lang_file_hash(objects) -> str:
     """
     从JSON内容中提取中文语言文件的路径
     """
-    lang_files = [
+    lang_files = (
         "minecraft/lang/zh_CN.lang",
         "minecraft/lang/zh_cn.lang",
         "minecraft/lang/zh_CN.json",
@@ -141,7 +142,7 @@ def extract_lang_file_hash(objects) -> str:
         "lang/zh_cn.lang",
         "lang/zh_CN.json",
         "lang/zh_cn.json"
-    ]
+    )
 
     for lang_file in lang_files:
         if lang_file in objects:

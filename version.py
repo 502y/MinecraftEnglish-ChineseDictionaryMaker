@@ -14,6 +14,10 @@ class Version:
 
     def __eq__(self, other):
         return self.main_version == other.main_version and self.secondary_version == other.secondary_version
+    
+    def __hash__(self):
+        return hash((self.main_version, self.secondary_version))
+
     def __gt__(self, other):
         return self.main_version > other.main_version or (self.main_version == other.main_version and self.secondary_version > other.secondary_version)
     def __lt__(self, other):

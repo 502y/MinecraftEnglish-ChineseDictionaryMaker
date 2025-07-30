@@ -26,14 +26,18 @@ jobs:
       run: |
         python main.py
 
-    - name: Check if output.json exists
+    - name: Check if output files exist
       run: |
         if [ ! -f "output.json" ]; then
           echo "Error: output.json not found"
           exit 1
         fi
+        if [ ! -f "output_key_based.json" ]; then
+          echo "Error: output_key_based.json not found"
+          exit 1
+        fi
 
-    - name: Download latest release asset
+    - name: Download latest release assets
       id: get-latest-release
       uses: actions/github-script@v6
       with:
@@ -46,10 +50,11 @@ jobs:
           
           if (releases.length > 0) {
             const latestRelease = releases[0];
-            const assets = latestRelease.assets.filter(asset => asset.name === 'output.json');
+            const assets = latestRelease.assets.filter(asset => 
+              asset.name === 'output.json' || asset.name === 'output_key_based.json');
             
-            if (assets.length > 0) {
-              const asset = assets[0];
+            let downloadedCount = 0;
+            for (const asset of assets) {
               const download = await github.rest.repos.getReleaseAsset({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -60,7 +65,11 @@ jobs:
               });
               
               // Write to file for comparison
-              fs.writeFileSync('latest_output.json', Buffer.from(download.data));
+              fs.writeFileSync('old_' + asset.name, Buffer.from(download.data));
+              downloadedCount++;
+            }
+            
+            if (downloadedCount >= 2) {
               core.setOutput('has_previous_release', 'true');
               return;
             }
@@ -72,7 +81,7 @@ jobs:
       id: compare
       run: |
         if [ "${{ steps.get-latest-release.outputs.has_previous_release }}" == "true" ]; then
-          if cmp -s output.json latest_output.json; then
+          if cmp -s output.json old_output.json && cmp -s output_key_based.json old_output_key_based.json; then
             echo "Files are identical, no need to release"
             echo "should_release=false" >> $GITHUB_OUTPUT
           else
@@ -105,4 +114,15 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./output.json
         asset_name: output.json
+        asset_content_type: application/json
+
+    - name: Upload output_key_based.json to Release
+      if: steps.compare.outputs.should_release == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./output_key_based.json
+        asset_name: output_key_based.json
         asset_content_type: application/json
