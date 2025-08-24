@@ -28,12 +28,16 @@ jobs:
 
     - name: Check if output files exist
       run: |
-        if [ ! -f "output.json" ]; then
+        if [ ! -f "output/output.json" ]; then
           echo "Error: output.json not found"
           exit 1
         fi
-        if [ ! -f "output_key_based.json" ]; then
+        if [ ! -f "output/output_key_based.json" ]; then
           echo "Error: output_key_based.json not found"
+          exit 1
+        fi
+        if [ ! -f "output/mod_tsv.tsv" ]; then
+          echo "Error: mod_tsv.tsv not found"
           exit 1
         fi
 
@@ -51,7 +55,7 @@ jobs:
           if (releases.length > 0) {
             const latestRelease = releases[0];
             const assets = latestRelease.assets.filter(asset => 
-              asset.name === 'output.json' || asset.name === 'output_key_based.json');
+              asset.name === 'output.json' || asset.name === 'output_key_based.json' || asset.name === 'mod_tsv.tsv');
             
             let downloadedCount = 0;
             for (const asset of assets) {
@@ -69,7 +73,7 @@ jobs:
               downloadedCount++;
             }
             
-            if (downloadedCount >= 2) {
+            if (downloadedCount >= 3) {
               core.setOutput('has_previous_release', 'true');
               return;
             }
@@ -81,7 +85,7 @@ jobs:
       id: compare
       run: |
         if [ "${{ steps.get-latest-release.outputs.has_previous_release }}" == "true" ]; then
-          if cmp -s output.json old_output.json && cmp -s output_key_based.json old_output_key_based.json; then
+          if cmp -s output.json old_output.json && cmp -s output_key_based.json old_output_key_based.json && cmp -s mod_tsv.tsv old_mod_tsv.tsv; then
             echo "Files are identical, no need to release"
             echo "should_release=false" >> $GITHUB_OUTPUT
           else
@@ -112,7 +116,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output.json
+        asset_path: ./output/output.json
         asset_name: output.json
         asset_content_type: application/json
 
@@ -123,6 +127,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output_key_based.json
+        asset_path: ./output/output_key_based.json
         asset_name: output_key_based.json
         asset_content_type: application/json
+
+    - name: Upload mod_tsv.tsv to Release
+      if: steps.compare.outputs.should_release == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./output/mod_tsv.tsv
+        asset_name: mod_tsv.tsv
+        asset_content_type: text/tab-separated-values
