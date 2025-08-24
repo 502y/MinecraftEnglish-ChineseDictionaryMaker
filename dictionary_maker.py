@@ -1,43 +1,8 @@
-import json
-import re
-import zipfile
 from typing import Dict, Any
+from tqdm import tqdm
 
+from util import generate_dict_from_path, extract_dict_from_jar
 from version import Version
-
-
-def clean_text(text: str) -> str:
-    """清理文本中的控制字符"""
-    return re.sub(r'[\r\n\t\b\f\v]', '', text)
-
-
-def generate_dict_from_lang(content: str) -> dict[str, str]:
-    return {
-        clean_text(line.split("=")[0]): clean_text(line.split("=")[1])
-        for line in content.split("\n")
-        if line.strip() and not line.isspace()  # and "=" in line
-    }
-
-
-def generate_dict_from_json(content: str) -> dict[str, str]:
-    data = json.loads(content)
-    return {clean_text(k): clean_text(v) for k, v in data.items()}
-
-
-def generate_dict_from_path(path: str) -> dict[str, str]:
-    with open(path, "r", encoding="utf-8") as f:
-        return generate_dict_from_json(f.read()) if path.endswith(".json") else generate_dict_from_lang(f.read())
-
-
-def extract_dict_from_jar(jar_path: str) -> dict[str, str]:
-    with zipfile.ZipFile(jar_path, 'r') as jar:
-        lang_files = [name for name in jar.namelist() if
-                      name.startswith("assets/minecraft/lang/") and
-                      name.endswith((".lang", ".json")) and
-                      not name.__contains__("deprecated")]
-        with jar.open(lang_files[0]) as f:
-            return generate_dict_from_json(f.read().decode('utf-8')) if lang_files[0].endswith(
-                ".json") else generate_dict_from_lang(f.read().decode('utf-8'))
 
 
 # 修改merge_dict函数以实现key传递
@@ -64,7 +29,7 @@ def make_dictionary(langs: dict[str, dict[str, dict[str, str]]]) -> dict[str, li
     dictionaries: dict[str, list[dict[str, Any]]] = {}
 
     # 对每个英文键处理
-    for english_key in all_english_keys:
+    for english_key in tqdm(all_english_keys, desc="处理英文",unit="keys"):
         # 收集该英文键在所有版本中的中文翻译及版本信息
         translations = {}  # {chinese_value: [versions, key_data]}
         
@@ -130,7 +95,7 @@ def make_key_based_dictionary(langs: dict[str, dict[str, dict[str, str]]]) -> di
     dictionaries: dict[str, list[dict[str, Any]]] = {}
 
     # 对每个键处理
-    for key in all_keys:
+    for key in tqdm(all_keys, desc="处理key", unit="keys"):
         # 收集该键在所有版本中的英文和中文翻译及版本信息
         translations = {}  # {chinese_value: {english_value: [versions]}}
         

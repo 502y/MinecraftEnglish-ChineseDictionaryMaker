@@ -3,6 +3,7 @@ import urllib.request
 import json
 import os
 from typing import Dict, Optional
+from tqdm import tqdm
 
 from version import Version
 
@@ -38,7 +39,7 @@ def get_assets_urls(manifest) -> Dict[str, str]:
 
 def get_assets_indexes(_assets_urls: dict[str, str]) -> Dict[str, Dict[str, str]]:
     indexes: Dict[str, any] = {}
-    for version, url in _assets_urls.items():
+    for version, url in tqdm(_assets_urls.items(), desc="获取版本索引", unit="versions"):
         try:
             with urllib.request.urlopen(url) as response:
                 data = response.read()
@@ -54,14 +55,11 @@ def download_file(url: str, filepath: str):
     try:
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         urllib.request.urlretrieve(url, filepath)
-        print(f"已下载: {filepath}")
     except Exception as e:
         print(f"下载 {url} 失败: {e}")
 
 def download_if_not_exist(url: str, filepath: str):
-    if os.path.exists(filepath):
-        print(f"{filepath}已存在，跳过下载")
-    else:
+    if not os.path.exists(filepath):
         download_file(url, filepath)
 
 
@@ -97,7 +95,7 @@ def download_all_files(indexes: Dict[str, Dict[str, str]]) -> Dict[str, Dict[str
     os.makedirs(clients_path, exist_ok=True)
     os.makedirs(langs_path, exist_ok=True)
 
-    for version, urls in indexes.items():
+    for version, urls in tqdm(indexes.items(), desc="下载版本文件"):
         # 下载assets文件
         assets_url = urls["assets"]
         # 从URL中提取文件名
@@ -158,7 +156,7 @@ def download(use_cache: bool):
     manifests = fetch_versions_manifest()
     if manifests:
         print("成功获取版本清单!")
-        print(f"最新版本: {manifests['latest']['release']}")
+        print(f"最新正式版本: {manifests['latest']['release']}")
         print(f"共有 {len(manifests['versions'])} 个版本记录")
     else:
         print("获取版本清单失败")

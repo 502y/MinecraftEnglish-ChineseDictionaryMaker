@@ -3,4 +3,9 @@ name = "minecraft-language-auto-fetch"
 version = "0.1.0"
 description = "Add your description here"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "json5==0.12.1",
+    "orjson==3.11.2",
+    "tqdm>=4.67.1",
+    "ujson==5.11.0",
+]

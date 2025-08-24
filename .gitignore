@@ -12,6 +12,8 @@ ENV/
 env.bak/
 venv.bak/
 
+.continue/
+
 # 运行中文件与输出文件
 download/
-output.json
+output/
