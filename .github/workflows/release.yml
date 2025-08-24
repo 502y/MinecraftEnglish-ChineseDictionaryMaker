@@ -12,132 +12,138 @@ jobs:
       contents: write
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        persist-credentials: false
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: true
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.13.5'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13.5'
 
-    - name: Run main script
-      run: |
-        python main.py
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
 
-    - name: Check if output files exist
-      run: |
-        if [ ! -f "output/output.json" ]; then
-          echo "Error: output.json not found"
-          exit 1
-        fi
-        if [ ! -f "output/output_key_based.json" ]; then
-          echo "Error: output_key_based.json not found"
-          exit 1
-        fi
-        if [ ! -f "output/mod_tsv.tsv" ]; then
-          echo "Error: mod_tsv.tsv not found"
-          exit 1
-        fi
+      - name: Run main script
+        run: |
+          python main.py
 
-    - name: Download latest release assets
-      id: get-latest-release
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const fs = require('fs');
-          const { data: releases } = await github.rest.repos.listReleases({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-          });
-          
-          if (releases.length > 0) {
-            const latestRelease = releases[0];
-            const assets = latestRelease.assets.filter(asset => 
-              asset.name === 'output.json' || asset.name === 'output_key_based.json' || asset.name === 'mod_tsv.tsv');
+      - name: Check if output files exist
+        run: |
+          if [ ! -f "output/output.json" ]; then
+            echo "Error: output.json not found"
+            exit 1
+          fi
+          if [ ! -f "output/output_key_based.json" ]; then
+            echo "Error: output_key_based.json not found"
+            exit 1
+          fi
+          if [ ! -f "output/mod_tsv.tsv" ]; then
+            echo "Error: mod_tsv.tsv not found"
+            exit 1
+          fi
+
+      - name: Download latest release assets
+        id: get-latest-release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
             
-            let downloadedCount = 0;
-            for (const asset of assets) {
-              const download = await github.rest.repos.getReleaseAsset({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                asset_id: asset.id,
-                headers: {
-                  Accept: 'application/octet-stream'
-                }
-              });
-              
-              // Write to file for comparison
-              fs.writeFileSync('old_' + asset.name, Buffer.from(download.data));
-              downloadedCount++;
+            if (releases.length > 0) {
+              const latestRelease = releases[0];
+              const assets = latestRelease.assets.filter(asset => 
+                asset.name === 'output.json' || asset.name === 'output_key_based.json' || asset.name === 'mod_tsv.tsv');
+            
+              let downloadedCount = 0;
+              for (const asset of assets) {
+                const download = await github.rest.repos.getReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id,
+                  headers: {
+                    Accept: 'application/octet-stream'
+                  }
+                });
+            
+                // Write to file for comparison
+                fs.writeFileSync('old_' + asset.name, Buffer.from(download.data));
+                downloadedCount++;
+              }
+            
+              if (downloadedCount >= 3) {
+                core.setOutput('has_previous_release', 'true');
+                return;
+              }
             }
             
-            if (downloadedCount >= 3) {
-              core.setOutput('has_previous_release', 'true');
-              return;
-            }
-          }
-          
-          core.setOutput('has_previous_release', 'false');
+            core.setOutput('has_previous_release', 'false');
 
-    - name: Compare with previous release
-      id: compare
-      run: |
-        if [ "${{ steps.get-latest-release.outputs.has_previous_release }}" == "true" ]; then
-          if cmp -s output.json old_output.json && cmp -s output_key_based.json old_output_key_based.json && cmp -s mod_tsv.tsv old_mod_tsv.tsv; then
-            echo "Files are identical, no need to release"
-            echo "should_release=false" >> $GITHUB_OUTPUT
+      - name: Compare with previous release
+        id: compare
+        run: |
+          if [ "${{ steps.get-latest-release.outputs.has_previous_release }}" == "true" ]; then
+            if cmp -s output.json old_output.json && cmp -s output_key_based.json old_output_key_based.json && cmp -s mod_tsv.tsv old_mod_tsv.tsv; then
+              echo "Files are identical, no need to release"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            else
+              echo "Files differ, will create new release"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "Files differ, will create new release"
+            echo "No previous release found, will create new release"
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
-        else
-          echo "No previous release found, will create new release"
-          echo "should_release=true" >> $GITHUB_OUTPUT
-        fi
 
-    - name: Create Release
-      id: create_release
-      if: steps.compare.outputs.should_release == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: release-${{ github.run_id }}
-        release_name: Minecraft English Chinese Dictionary Release ${{ github.run_id }}
-        draft: false
-        prerelease: false
-
-    - name: Upload output.json to Release
-      if: steps.compare.outputs.should_release == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output/output.json
-        asset_name: output.json
-        asset_content_type: application/json
-
-    - name: Upload output_key_based.json to Release
-      if: steps.compare.outputs.should_release == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output/output_key_based.json
-        asset_name: output_key_based.json
-        asset_content_type: application/json
-
-    - name: Upload mod_tsv.tsv to Release
-      if: steps.compare.outputs.should_release == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
+      - name: Create Release
+        id: create_release
+        if: steps.compare.outputs.should_release == 'true'
+        uses: actions/create-release@v1
+        env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./output/mod_tsv.tsv
-        asset_name: mod_tsv.tsv
-        asset_content_type: text/tab-separated-values
+        with:
+          tag_name: release-${{ github.run_id }}
+          release_name: Minecraft English Chinese Dictionary Release ${{ github.run_id }}
+          draft: false
+          prerelease: false
+
+      - name: Upload output.json to Release
+        if: steps.compare.outputs.should_release == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./output/output.json
+          asset_name: output.json
+          asset_content_type: application/json
+
+      - name: Upload output_key_based.json to Release
+        if: steps.compare.outputs.should_release == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./output/output_key_based.json
+          asset_name: output_key_based.json
+          asset_content_type: application/json
+
+      - name: Upload mod_tsv.tsv to Release
+        if: steps.compare.outputs.should_release == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./output/mod_tsv.tsv
+          asset_name: mod_tsv.tsv
+          asset_content_type: text/tab-separated-values

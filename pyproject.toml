@@ -9,3 +9,9 @@ dependencies = [
     "tqdm>=4.67.1",
     "ujson==5.11.0",
 ]
+
+# 添加包配置，解决flat-layout导致的构建问题
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
+namespaces = false

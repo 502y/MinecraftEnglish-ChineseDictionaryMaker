@@ -1,6 +1,7 @@
 import argparse
 import csv
 import json
+import os
 
 from dictionary_maker import get_dictionary, make_key_based_dictionary, get_merged_dicts
 from downloader import download
@@ -14,6 +15,7 @@ if __name__ == "__main__":
     file_map = download(args.useCache)
 
     output_path = "output/"
+    os.mkdir(output_path)
 
     # 生成以英文为基准的字典
     print("正在生成以英文为基准的字典...")
