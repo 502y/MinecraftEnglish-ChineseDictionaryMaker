@@ -1,8 +1,9 @@
 import json5
-import orjson
 import re
 import zipfile
 from pathlib import Path
+
+import ujson
 
 
 def clean_text(text: str) -> str:
@@ -30,7 +31,7 @@ def generate_dict_from_json(content: str) -> dict[str, str]:
     if content.__contains__("//"):
         data = json5.loads(content)
     else:
-        data = orjson.loads(content)
+        data = ujson.loads(content)
     return {clean_text(k): clean_text(v) for k, v in data.items() if k is str and v is str}
 
 
